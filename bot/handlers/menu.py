@@ -4,6 +4,8 @@ from aiogram import types, Router, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from asgiref.sync import sync_to_async
 from aiogram.types import FSInputFile
+
+from bot.utils.redis_client import get_cart, save_cart, clear_cart
 from shop.models import Category, Product
 from bot.keyboards.inline.category import get_main_categories_keyboard
 
@@ -87,8 +89,6 @@ async def show_product_detail(callback: types.CallbackQuery):
     )
 
 # Savatni vaqtincha RAM da saqlash uchun (foydalanuvchi_id orqali)
-cart = {}
-
 @router.callback_query(F.data.startswith("add_to_cart_"))
 async def add_to_cart(callback: types.CallbackQuery):
     product_id = int(callback.data.split("_")[3])
@@ -98,40 +98,43 @@ async def add_to_cart(callback: types.CallbackQuery):
     product = await sync_to_async(Product.objects.get)(id=product_id)
 
     # Savatga qo‘shish
-    if user_id not in cart:
-        cart[user_id] = []
-
-    cart[user_id].append({
+    cart = get_cart(user_id)
+    cart.append({
         "id": product.id,
         "name": product.name_uz,
-        "price": product.price
+        "price": float(product.price)
     })
+    save_cart(user_id, cart)
 
     await callback.answer("✅ Mahsulot savatchaga qo‘shildi", show_alert=True)
 
 # 🛒 Savatchani ko‘rish
-@router.message(F.text == "🛒 Savatcha")
+@router.message(F.text == "🛒 Savatni ko\'rish")
 async def show_cart(message: types.Message):
     user_id = message.from_user.id
+    cart = get_cart(user_id)
 
-    if user_id not in cart or not cart[user_id]:
+    if not cart:
         await message.answer("🛒 Savatchangiz hozircha bo‘sh.")
         return
 
     text = "🛒 <b>Savatchangiz:</b>\n\n"
     total = 0
 
-    for item in cart[user_id]:
+    for item in cart:
         text += f"• {item['name']} - {item['price']} so‘m\n"
         total += item['price']
 
     text += f"\n<b>Jami:</b> {total} so‘m"
-
     await message.answer(text, parse_mode="HTML")
 
 
-
-
+# savatchani tozalash
+@router.message(F.text == "🧹 Savatni tozalash")
+async def clear_cart_handler(message: types.Message):
+    user_id = message.from_user.id
+    clear_cart(user_id)
+    await message.answer("🧺 Savatchangiz tozalandi.")
 
 
 
