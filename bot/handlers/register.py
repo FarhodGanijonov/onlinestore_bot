@@ -43,3 +43,10 @@ async def get_phone_number(message: types.Message, state: FSMContext):
     await state.clear()
 
     await message.answer("Bo'limni tanlang:", reply_markup=main_menu_keyboard)
+
+
+@router.message(RegisterState.language)
+async def set_language(message: types.Message, state: FSMContext):
+    # Bu yerda tanlanga n tilni olish va saqlashni yozsang bo'ladi
+    await state.clear()  # holatni yakunlash
+    await message.answer("🔸 Til tanlandi. Asosiy menyudan foydalaning:", reply_markup=main_menu_keyboard)
